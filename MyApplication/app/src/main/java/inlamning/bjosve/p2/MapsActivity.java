@@ -1,22 +1,18 @@
 package inlamning.bjosve.p2;
 
 import android.Manifest;
-import android.app.Dialog;
+import android.content.DialogInterface;
 import android.content.pm.PackageManager;
-import android.location.Address;
-import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationManager;
-import android.support.annotation.MainThread;
-import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
-import android.support.v4.app.FragmentManager;
+import android.support.v7.app.AlertDialog;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
-import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -26,14 +22,13 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 
-
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private GoogleMap mMap;
     private LocationManager mLocationManager;
     private SocketHandler socketHandler;
     private SupportMapFragment mapFragment;
-    private LinearLayout llTexts;
+    LinearLayout llTexts;
 
 
     @Override
@@ -48,58 +43,80 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
         socketHandler = new SocketHandler(this);
         socketHandler.start();
+        llTexts = (LinearLayout) findViewById(R.id.llTexts);
+        buttonInit();
+        mLocationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+        mapFragment.getMapAsync(this);
 
-        llTexts = (LinearLayout)findViewById(R.id.llTexts);
-        Button btnMessage = (Button)findViewById(R.id.btnMessage);
+
+    }
+
+    private void buttonInit() {
+        Button btnMessage = (Button) findViewById(R.id.btnMessage);
         btnMessage.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
 
-                final Dialog dialog = new Dialog(MapsActivity.this);
-                dialog.setContentView(R.layout.show_single_list_item);
-                DbItem dbItem = adapter.getItem(position);
-                TextView tvDate = (TextView) dialog.findViewById(R.id.tvDate);
-                TextView tvCategory = (TextView)dialog.findViewById(R.id.tvCategory);
-                TextView tvAmount = (TextView)dialog.findViewById(R.id.tvAmount);
-                tvDate.setText("Date: " + dbItem.getDate());
-                tvCategory.setText("Categoty: " + dbItem.getCategory());
-                tvAmount.setText("Amount: " + dbItem.getAmount() + " kr");
+                AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
+
+                // 2. Chain together various setter methods to set the dialog characteristics
+                builder.setView(R.layout.dialog_message)
+                        .setTitle(R.string.compose_message);
+                builder.setPositiveButton(R.string.send, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                        // User clicked OK button
+                    }
+                });
+                builder.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                        Toast.makeText(MapsActivity.this, "Message canceled", Toast.LENGTH_SHORT).show();
+                    }
+                });
+
+                // 3. Get the AlertDialog from create()
+                AlertDialog dialog = builder.create();
                 dialog.show();
-                final int N = 10; // total number of textviews to add
-
-                final TextView[] myTextViews = new TextView[N]; // create an empty array;
-
-                for (int i = 0; i < N; i++) {
-                    // create a new textview
-                    final TextView rowTextView = new TextView(MapsActivity.this);
-
-                    // set some properties of rowTextView or something
-                    rowTextView.setText("This is row #" + i);
-
-                    // add the textview to the linearlayout
-                    llTexts.addView(rowTextView);
-
-                    // save a reference to the textview for later
-                    myTextViews[i] = rowTextView;
             }
-        }});
-        mLocationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-        mapFragment.getMapAsync(this);
+        });
+        Button btnGroups = (Button)findViewById(R.id.btnGroup);
+        btnGroups.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                socketHandler.viewGroups();
+
+            }
+        });
+        Button btnRegister = (Button)findViewById(R.id.btnRegister);
+        btnRegister.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                socketHandler.registerToGroup();
+            }
+        });
+        Button btnUnregister = (Button)findViewById(R.id.btnUnregister);
+        btnUnregister.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                socketHandler.unregister();
+            }
+        });
     }
 
     @Override
-    public void onResume(){
+    public void onResume() {
         super.onResume();
 
     }
+
     @Override
-    public void onPause(){
+    public void onPause() {
         super.onPause();
     }
+
     @Override
-    public void onDestroy(){
+    public void onDestroy() {
         super.onDestroy();
-        socketHandler.closeSocket();
+        socketHandler.shutDownSocket();
     }
 
     private Location getLocationString() {
@@ -116,29 +133,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             boolean isGPSEnabled = mLocationManager
                     .isProviderEnabled(LocationManager.GPS_PROVIDER);
 
-            // getting network status
-            boolean isNetworkEnabled = mLocationManager
-                    .isProviderEnabled(LocationManager.NETWORK_PROVIDER);
-
-            if (!isGPSEnabled && !isNetworkEnabled) {
-                // no network provider is enabled
-            } else {
-                boolean canGetLocation = true;
-                if (isNetworkEnabled) {
-                    mLocationManager.requestLocationUpdates(
-                            LocationManager.NETWORK_PROVIDER,
-                            0,
-                            0, listener);
-                    Log.d("Network", "Network Enabled");
-                    if (mLocationManager != null) {
-                        currentLocation = mLocationManager
-                                .getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-                        if (currentLocation != null) {
-                            double latitude = currentLocation.getLatitude();
-                            double longitude = currentLocation.getLongitude();
-                        }
-                    }
-                }
                 // if GPS Enabled get lat/long using GPS Services
                 if (isGPSEnabled) {
                     if (currentLocation == null) {
@@ -157,7 +151,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         }
                     }
                 }
-            }
+
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -167,10 +161,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
 
-
-    public LocationManager recieveLocationManager(){
+    public LocationManager recieveLocationManager() {
         return mLocationManager;
     }
+
     /**
      * Manipulates the map once available.
      * This callback is triggered when the map is ready to be used.

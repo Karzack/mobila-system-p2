@@ -13,7 +13,7 @@ import android.util.Log;
  * Created by Bjaern on 2017-04-27.
  */
 
-class CurrentLocation implements LocationListener {
+public class CurrentLocation implements LocationListener {
 
     private MapsActivity mapsActivity;
 
