@@ -28,7 +28,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private LocationManager mLocationManager;
     private SocketHandler socketHandler;
     private SupportMapFragment mapFragment;
-    LinearLayout llTexts;
+    public LinearLayout llTexts;
+    public Location location;
 
 
     @Override
@@ -52,30 +53,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private void buttonInit() {
-        Button btnMessage = (Button) findViewById(R.id.btnMessage);
-        btnMessage.setOnClickListener(new View.OnClickListener() {
+        Button btnMembers = (Button) findViewById(R.id.btnMembers);
+        btnMembers.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-
-                AlertDialog.Builder builder = new AlertDialog.Builder(MapsActivity.this);
-
-                // 2. Chain together various setter methods to set the dialog characteristics
-                builder.setView(R.layout.dialog_message)
-                        .setTitle(R.string.compose_message);
-                builder.setPositiveButton(R.string.send, new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int id) {
-                        // User clicked OK button
-                    }
-                });
-                builder.setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, int id) {
-                        Toast.makeText(MapsActivity.this, "Message canceled", Toast.LENGTH_SHORT).show();
-                    }
-                });
-
-                // 3. Get the AlertDialog from create()
-                AlertDialog dialog = builder.create();
-                dialog.show();
+                socketHandler.viewMembers();
             }
         });
         Button btnGroups = (Button)findViewById(R.id.btnGroup);
@@ -98,6 +80,13 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             @Override
             public void onClick(View view) {
                 socketHandler.unregister();
+            }
+        });
+        Button btnPosition = (Button)findViewById(R.id.btnPosition);
+        btnPosition.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                socketHandler.showPosition(location);
             }
         });
     }
@@ -133,6 +122,30 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             boolean isGPSEnabled = mLocationManager
                     .isProviderEnabled(LocationManager.GPS_PROVIDER);
 
+            // getting network status
+            boolean isNetworkEnabled = mLocationManager
+                    .isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+
+            if (!isGPSEnabled && !isNetworkEnabled) {
+                // no network provider is enabled
+            } else {
+                boolean canGetLocation = true;
+                if (isNetworkEnabled) {
+                    mLocationManager.requestLocationUpdates(
+                            LocationManager.NETWORK_PROVIDER,
+                            0,
+                            0, listener);
+                    Log.d("Network", "Network Enabled");
+                    if (mLocationManager != null) {
+                        currentLocation = mLocationManager
+                                .getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+                        location = currentLocation;
+                        if (currentLocation != null) {
+                            double latitude = currentLocation.getLatitude();
+                            double longitude = currentLocation.getLongitude();
+                        }
+                    }
+                }
                 // if GPS Enabled get lat/long using GPS Services
                 if (isGPSEnabled) {
                     if (currentLocation == null) {
@@ -144,6 +157,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         if (mLocationManager != null) {
                             currentLocation = mLocationManager
                                     .getLastKnownLocation(LocationManager.GPS_PROVIDER);
+                            location = currentLocation;
                             if (currentLocation != null) {
                                 double latitude = currentLocation.getLatitude();
                                 double longitude = currentLocation.getLongitude();
@@ -151,7 +165,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         }
                     }
                 }
-
+            }
 
         } catch (Exception e) {
             e.printStackTrace();

@@ -1,6 +1,7 @@
 package inlamning.bjosve.p2;
 
 import android.app.AlertDialog;
+import android.location.Location;
 import android.util.JsonWriter;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -64,6 +65,14 @@ public class SocketHandler extends Thread {
 
     public void unregister() {
         new Sender("unregister").start();
+    }
+
+    public void viewMembers() {
+        new Sender("members").start();
+    }
+
+    public void showPosition(Location location) {
+        new Sender("location", location).start();
     }
 
 
@@ -139,6 +148,29 @@ public class SocketHandler extends Thread {
                                 }
                             });
                             break;
+                        case "members":
+                            activity.runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    try {
+                                        JSONArray jsonArray = json.getJSONArray("members");
+                                        TextView group = new TextView(activity);
+                                        group.setText("Group " + json.getString("group") + ":");
+                                        activity.llTexts.addView(group);
+                                        for (int i = 0; i < jsonArray.length(); i++) {
+                                            JSONObject jsonMember = jsonArray.getJSONObject(i);
+                                            final TextView memberText = new TextView(activity);
+                                            memberText.setText("Member #" + i + ": " +
+                                                    jsonMember.getString("member"));
+
+                                            activity.llTexts.addView(memberText);
+                                        }
+                                    } catch (JSONException e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+                            });
+                            break;
                         case "groups":
                             activity.runOnUiThread(new Runnable() {
                                 @Override
@@ -147,8 +179,9 @@ public class SocketHandler extends Thread {
                                         JSONArray jsonArray = json.getJSONArray("groups");
                                         for (int i = 0; i < jsonArray.length(); i++) {
                                             final TextView groupText = new TextView(activity);
+                                            JSONObject jsonGroup = jsonArray.getJSONObject(i);
                                             groupText.setText("Group #" + i + ": " +
-                                                    jsonArray.getString(i));
+                                                    jsonGroup.getString("group"));
 
                                             activity.llTexts.addView(groupText);
                                         }
@@ -157,6 +190,27 @@ public class SocketHandler extends Thread {
                                     }
                                 }
                             });
+                            break;
+                        case "location":
+                            activity.runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    TextView register = new TextView(activity);
+                                    try {
+
+                                        register.setText("Position of " + json.getString("id") +
+                                                " is " + json.getString("longitude") + " / " +
+                                        json.getString("latitude"));
+                                    } catch (JSONException e) {
+                                        e.printStackTrace();
+                                    }
+
+
+                                    activity.llTexts.addView(register);
+
+                                }
+                            });
+
                             break;
                     }
             } catch(JSONException e){
@@ -171,10 +225,16 @@ public class SocketHandler extends Thread {
 private class Sender extends Thread {
 
     private String sendTo;
+    private Location location;
 
     public Sender(String sendTo) {
 
         this.sendTo = sendTo;
+    }
+
+    public Sender(String sendTo, Location location) {
+        this.sendTo = sendTo;
+        this.location = location;
     }
 
     public void run() {
@@ -216,6 +276,15 @@ private class Sender extends Thread {
 
                     }
                     break;
+                case "members":
+                    writer.beginObject()
+                            .name("type").value("members")
+                            .name("group").value("test")
+                            .endObject();
+                    json = new JSONObject(stringWriter.toString());
+                    dos.writeUTF(json.toString());
+                    dos.flush();
+                    break;
                 case "groups":
                     writer.beginObject()
                             .name("type").value("groups")
@@ -224,7 +293,29 @@ private class Sender extends Thread {
                     dos.writeUTF(json.toString());
                     dos.flush();
                     break;
+                case "location":
+                    if(id!=null) {
+                        writer.beginObject()
+                                .name("type").value("location")
+                                .name("id").value(id)
+                                .name("longitude").value(String.valueOf(location.getLongitude()))
+                                .name("latitude").value(String.valueOf(location.getLatitude()))
+                                .endObject();
+                        json = new JSONObject(stringWriter.toString());
+                        dos.writeUTF(json.toString());
+                        dos.flush();
 
+                    }
+                    else{
+                        activity.runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                Toast.makeText(activity,"Not registered in any groups",Toast.LENGTH_SHORT).show();
+                            }
+                        });
+
+                    }
+                    break;
             }
         } catch (IOException e) {
             e.printStackTrace();
