@@ -11,7 +11,9 @@ import android.support.v7.app.AlertDialog;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.Toast;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -29,25 +31,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private SocketHandler socketHandler;
     private SupportMapFragment mapFragment;
     public LinearLayout llTexts;
-    public Location location;
+    public ScrollView svText;
+    private EditText etGroup;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
-        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
+        svText = (ScrollView)findViewById(R.id.svText);
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
         }
-        socketHandler = new SocketHandler(this);
-        socketHandler.start();
+        etGroup = (EditText)findViewById(R.id.etGroup);
         llTexts = (LinearLayout) findViewById(R.id.llTexts);
         buttonInit();
         mLocationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
         mapFragment.getMapAsync(this);
+
 
 
     }
@@ -57,7 +60,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         btnMembers.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                socketHandler.viewMembers();
+                socketHandler.viewMembers(etGroup.getText().toString());
             }
         });
         Button btnGroups = (Button)findViewById(R.id.btnGroup);
@@ -72,7 +75,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         btnRegister.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                socketHandler.registerToGroup();
+                socketHandler.registerToGroup(etGroup.getText().toString());
+
             }
         });
         Button btnUnregister = (Button)findViewById(R.id.btnUnregister);
@@ -82,18 +86,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 socketHandler.unregister();
             }
         });
-        Button btnPosition = (Button)findViewById(R.id.btnPosition);
-        btnPosition.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                socketHandler.showPosition(location);
-            }
-        });
     }
 
     @Override
     public void onResume() {
         super.onResume();
+        socketHandler = new SocketHandler(this);
 
     }
 
@@ -105,10 +103,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onDestroy() {
         super.onDestroy();
+        socketHandler.runningListener = false;
         socketHandler.shutDownSocket();
+        socketHandler = null;
     }
 
-    private Location getLocationString() {
+    public Location getLocationString() {
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 1);
         }
@@ -129,7 +129,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             if (!isGPSEnabled && !isNetworkEnabled) {
                 // no network provider is enabled
             } else {
-                boolean canGetLocation = true;
                 if (isNetworkEnabled) {
                     mLocationManager.requestLocationUpdates(
                             LocationManager.NETWORK_PROVIDER,
@@ -139,11 +138,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     if (mLocationManager != null) {
                         currentLocation = mLocationManager
                                 .getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-                        location = currentLocation;
-                        if (currentLocation != null) {
-                            double latitude = currentLocation.getLatitude();
-                            double longitude = currentLocation.getLongitude();
-                        }
                     }
                 }
                 // if GPS Enabled get lat/long using GPS Services
@@ -157,11 +151,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                         if (mLocationManager != null) {
                             currentLocation = mLocationManager
                                     .getLastKnownLocation(LocationManager.GPS_PROVIDER);
-                            location = currentLocation;
-                            if (currentLocation != null) {
-                                double latitude = currentLocation.getLatitude();
-                                double longitude = currentLocation.getLongitude();
-                            }
                         }
                     }
                 }
@@ -174,6 +163,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         return currentLocation;
     }
 
+    public void clearMap(){
+        mMap.clear();
+    }
+
+    public void pinMap(String name, double longitude, double latitude){
+        LatLng location = new LatLng(latitude, longitude);
+        mMap.addMarker(new MarkerOptions().position(location).title(name));
+    }
 
     public LocationManager recieveLocationManager() {
         return mLocationManager;
@@ -191,10 +188,24 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+
+        clearMap();
         Location theLocation = getLocationString();
-        // Add a marker in Sydney and move the camera
-        LatLng location = new LatLng(theLocation.getLatitude(), theLocation.getLongitude());
-        mMap.addMarker(new MarkerOptions().position(location).title("Bjaern is here!"));
+        LatLng location = new LatLng(theLocation.getLatitude(),theLocation.getLongitude());
+        pinMap("Testing",theLocation.getLongitude(),theLocation.getLatitude());
+        socketHandler = new SocketHandler(this);
         mMap.moveCamera(CameraUpdateFactory.newLatLng(location));
+      //
+        //
+      /*
+        // Add a marker in Sydney and move the camera
+       // LatLng location = new LatLng(theLocation.getLatitude(), theLocation.getLongitude());
+        mMap.addMarker(new MarkerOptions().position(location).title("Bjaern is here!"));//
+        */
+    }
+
+    public void sendNewLocation() {
+        Location location = getLocationString();
+        socketHandler.sendLocation(location);
     }
 }

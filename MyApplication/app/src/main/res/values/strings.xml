@@ -1,11 +1,9 @@
 <resources>
-    <string name="app_name">P2</string>
-    <string name="title_activity_maps">Map</string>
+    <string name="app_name">P2 Världen och Vännerna</string>
+    <string name="title_activity_maps">P2 Världen och vännerna</string>
 
-    <!-- TODO: Remove or change this placeholder text -->
-    <string name="hello_blank_fragment">Hello blank fragment</string>
 
     <string name="send">Send</string>
     <string name="cancel">Cancel</string>
-    <string name="compose_message">Compose message</string>
+    <string name="join_group">Join which group</string>
 </resources>
